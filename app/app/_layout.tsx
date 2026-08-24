@@ -9,25 +9,15 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <AuthProvider>
         <StatusBar style="light" />
+        {/* Every screen draws its own chrome through AppShell, so the native
+            navigator header is off throughout. */}
         <Stack
           screenOptions={{
-            headerStyle: { backgroundColor: colors.primary },
-            headerTintColor: '#fff',
-            headerTitleStyle: { fontWeight: '700' },
-            contentStyle: { backgroundColor: colors.background },
+            headerShown: false,
+            contentStyle: { backgroundColor: colors.bg },
+            animation: 'fade',
           }}
-        >
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="login" options={{ title: 'Iyambere' }} />
-          <Stack.Screen name="register" options={{ title: 'Create an account' }} />
-          <Stack.Screen name="citizen/index" options={{ title: 'My reports' }} />
-          <Stack.Screen name="citizen/report" options={{ title: 'Report a leak' }} />
-          <Stack.Screen name="technician/index" options={{ title: 'My jobs' }} />
-          <Stack.Screen name="ops/index" options={{ title: 'Network operations' }} />
-          <Stack.Screen name="ops/pipes" options={{ title: 'Pipeline registry' }} />
-          <Stack.Screen name="ops/pressure" options={{ title: 'Pressure and EPANET' }} />
-          <Stack.Screen name="report/[id]" options={{ title: 'Report' }} />
-        </Stack>
+        />
       </AuthProvider>
     </SafeAreaProvider>
   );

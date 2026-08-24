@@ -69,6 +69,35 @@ Created by `npm run seed` — the password for all of them is `iyambere`.
 | `0780000002` | Technician | My jobs · accept, arrive, close out |
 | `0780000003` | Supervisor | Operations dashboard · dispatch, verify |
 
+## Design system
+
+A dark operations console. Colour is reserved for meaning — a status, a
+severity, a pressure deviation — so a screen full of green reads as a network in
+good health and a red chip is worth walking over to.
+
+| Token | Value | Used for |
+|---|---|---|
+| Canvas | `#0A0A0C` | Page background |
+| Surface | `#131317` | Cards and panels |
+| Raised | `#1B1B21` | Inputs, active tabs, map wells |
+| Accent | `#3ECF8E` | The single interactive colour |
+| Brand | `#F97316` | The Iyambere mark |
+| Burst / Steady / Repaired | `#F26D78` · `#E9A73E` · `#3ECF8E` | Severity and status |
+
+Everything lives in [theme.ts](app/src/theme.ts) and the primitives in
+[ui.tsx](app/src/components/ui.tsx) — `Card`, `Panel`, `Tabs`, `StatusChip`,
+`Stat`, `Meter`, `Checkbox`. No screen defines a colour of its own.
+
+**One layout, two shapes.** [AppShell](app/src/components/AppShell.tsx) renders
+an icon rail plus a top bar above 900px and a bottom tab bar below it, and
+[ReportList](app/src/components/ReportList.tsx) renders the same reports as a
+dense table on a dashboard and as cards on a phone. Both show the identical five
+facts, because those are the five an operator needs before deciding to act.
+
+Maps follow the same palette — dark Carto tiles on web, a matching
+`customMapStyle` on native — with a soft halo under each incident so a cluster
+of leaks reads as a hot zone.
+
 ## Where each part of the proposal lives
 
 | Proposal module | Code |

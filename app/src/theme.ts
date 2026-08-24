@@ -1,39 +1,76 @@
-/** One place for colour and spacing, so every screen looks like the same product. */
+/**
+ * Iyambere design tokens.
+ *
+ * Dark operations-console palette: a near-black canvas, raised surfaces for
+ * panels, and colour used only where it carries meaning — a status, a severity,
+ * a pressure deviation. Nothing is coloured for decoration.
+ */
 
 export const colors = {
-  primary: '#0B6FB4',       // WASAC water blue
-  primaryDark: '#075483',
-  primarySoft: '#E6F1F9',
-  accent: '#0E9F8A',
+  // Canvas and surfaces
+  bg: '#0A0A0C',
+  surface: '#131317',
+  surfaceRaised: '#1B1B21',
+  surfaceHover: '#212129',
+  border: '#26262F',
+  borderSoft: '#1D1D24',
 
-  background: '#F4F7FA',
-  card: '#FFFFFF',
-  border: '#E2E8F0',
+  // Type
+  text: '#F2F2F5',
+  textDim: '#A1A1AC',
+  textMuted: '#6E6E7A',
 
-  text: '#0F172A',
-  muted: '#64748B',
+  // Accent — the single interactive colour
+  accent: '#3ECF8E',
+  accentDim: '#2A9A6B',
+  brand: '#F97316',
 
-  danger: '#DC2626',
-  warning: '#D97706',
-  success: '#059669',
+  // Semantic
+  danger: '#F26D78',
+  warning: '#E9A73E',
+  info: '#63A6E8',
+  success: '#3ECF8E',
 };
 
-/** Report status → the colour and wording citizens actually see. */
-export const statusStyles: Record<string, { label: string; color: string }> = {
-  submitted: { label: 'Awaiting dispatch', color: colors.warning },
-  assigned:  { label: 'Technician assigned', color: colors.primary },
-  accepted:  { label: 'Technician on the way', color: colors.primary },
-  on_site:   { label: 'Repair in progress', color: colors.accent },
-  resolved:  { label: 'Repaired', color: colors.success },
-  verified:  { label: 'Verified complete', color: colors.success },
-  rejected:  { label: 'Closed — not a leak', color: colors.muted },
+/** Translucent tint of a colour — the fill behind every status chip. */
+export function tint(hex: string, alpha: number) {
+  const value = hex.replace('#', '');
+  const r = parseInt(value.slice(0, 2), 16);
+  const g = parseInt(value.slice(2, 4), 16);
+  const b = parseInt(value.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+type StatusStyle = { label: string; color: string; icon: string };
+
+/** Report lifecycle → the words and colour a person actually sees. */
+export const statusStyles: Record<string, StatusStyle> = {
+  submitted: { label: 'Pending',     color: colors.danger,    icon: 'alert-circle-outline' },
+  assigned:  { label: 'Assigned',    color: colors.info,      icon: 'person-outline' },
+  accepted:  { label: 'En route',    color: colors.warning,   icon: 'navigate-outline' },
+  on_site:   { label: 'In progress', color: colors.warning,   icon: 'construct-outline' },
+  resolved:  { label: 'Repaired',    color: colors.success,   icon: 'checkmark-circle-outline' },
+  verified:  { label: 'Verified',    color: colors.success,   icon: 'shield-checkmark-outline' },
+  rejected:  { label: 'Closed',      color: colors.textMuted, icon: 'close-circle-outline' },
 };
 
-export const severityColors: Record<string, string> = {
-  low: colors.muted,
-  medium: colors.warning,
-  high: colors.danger,
+export const severityStyles: Record<string, StatusStyle> = {
+  low:    { label: 'Low',    color: colors.textDim, icon: 'water-outline' },
+  medium: { label: 'Steady', color: colors.warning, icon: 'water-outline' },
+  high:   { label: 'Burst',  color: colors.danger,  icon: 'warning-outline' },
 };
 
-export const spacing = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32 };
-export const radius = { sm: 8, md: 12, lg: 16 };
+export const pipeStatusStyles: Record<string, StatusStyle> = {
+  active:         { label: 'Active',         color: colors.success,   icon: 'ellipse' },
+  inactive:       { label: 'Inactive',       color: colors.warning,   icon: 'ellipse' },
+  decommissioned: { label: 'Decommissioned', color: colors.textMuted, icon: 'ellipse' },
+};
+
+/** A red→amber→green ramp, used by condition and performance meters. */
+export const heatRamp = [colors.danger, '#EF8B5C', colors.warning, '#B8C452', colors.success];
+
+export const spacing = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, xxl: 48 };
+export const radius = { sm: 8, md: 12, lg: 16, xl: 20, pill: 999 };
+
+/** Above this width the layout switches to the desktop console. */
+export const WIDE_BREAKPOINT = 900;

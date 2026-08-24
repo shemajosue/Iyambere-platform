@@ -5,11 +5,11 @@
     "version": "0.1.0",
     "scheme": "iyambere",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": false,
     "splash": {
       "resizeMode": "contain",
-      "backgroundColor": "#0B6FB4"
+      "backgroundColor": "#0A0A0C"
     },
     "ios": {
       "supportsTablet": true,
@@ -21,11 +21,14 @@
     },
     "android": {
       "package": "rw.iyambere.app",
+      "adaptiveIcon": { "backgroundColor": "#0A0A0C" },
       "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION", "CAMERA"]
     },
     "web": {
       "bundler": "metro",
-      "output": "single"
+      "output": "single",
+      "themeColor": "#0A0A0C",
+      "backgroundColor": "#0A0A0C"
     },
     "plugins": [
       "expo-router",

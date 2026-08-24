@@ -1,17 +1,13 @@
 import {
-  ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
+  ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View,
   type TextInputProps, type ViewProps,
 } from 'react-native';
-import { colors, radius, spacing, statusStyles, severityColors } from '../theme';
+import { Ionicons } from '@expo/vector-icons';
+import {
+  colors, heatRamp, pipeStatusStyles, radius, severityStyles, spacing, statusStyles, tint,
+} from '../theme';
 
-/** A centred, max-width page body — phone-shaped on mobile, readable on desktop. */
-export function Screen({ children, wide = false }: { children: React.ReactNode; wide?: boolean }) {
-  return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.screenContent}>
-      <View style={[styles.container, { maxWidth: wide ? 1200 : 560 }]}>{children}</View>
-    </ScrollView>
-  );
-}
+// ---------------------------------------------------------------- surfaces ---
 
 export function Card({ style, children, ...rest }: ViewProps) {
   return (
@@ -21,159 +17,420 @@ export function Card({ style, children, ...rest }: ViewProps) {
   );
 }
 
-export function Title({ children }: { children: React.ReactNode }) {
-  return <Text style={styles.title}>{children}</Text>;
+/** A card with a heading row, matching the panel style on the dashboard. */
+export function Panel({
+  title, action, children, style,
+}: {
+  title: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+  style?: ViewProps['style'];
+}) {
+  return (
+    <Card style={style}>
+      <View style={styles.panelHead}>
+        <Text style={styles.panelTitle}>{title}</Text>
+        {action}
+      </View>
+      {children}
+    </Card>
+  );
 }
 
-export function Subtitle({ children }: { children: React.ReactNode }) {
-  return <Text style={styles.subtitle}>{children}</Text>;
+// ------------------------------------------------------------------- type ---
+
+/** The small uppercase caption above a field or a block of facts. */
+export function Label({ children }: { children: React.ReactNode }) {
+  return <Text style={styles.sectionLabel}>{children}</Text>;
 }
 
-export function Muted({ children }: { children: React.ReactNode }) {
-  return <Text style={styles.muted}>{children}</Text>;
-}
+// ---------------------------------------------------------------- controls ---
 
 export function Button({
-  label, onPress, variant = 'primary', loading = false, disabled = false,
+  label, onPress, variant = 'primary', icon, loading = false, disabled = false, style,
 }: {
   label: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'danger';
+  variant?: 'primary' | 'ghost' | 'danger';
+  icon?: string;
   loading?: boolean;
   disabled?: boolean;
+  style?: ViewProps['style'];
 }) {
   const isDisabled = disabled || loading;
+  const tone =
+    variant === 'primary' ? colors.bg : variant === 'danger' ? colors.danger : colors.text;
+
   return (
     <Pressable
       onPress={onPress}
       disabled={isDisabled}
       style={({ pressed }) => [
         styles.button,
-        variant === 'secondary' && styles.buttonSecondary,
+        variant === 'primary' && styles.buttonPrimary,
+        variant === 'ghost' && styles.buttonGhost,
         variant === 'danger' && styles.buttonDanger,
-        (pressed || isDisabled) && { opacity: 0.7 },
+        (pressed || isDisabled) && { opacity: 0.65 },
+        style,
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'secondary' ? colors.primary : '#fff'} />
+        <ActivityIndicator size="small" color={tone} />
       ) : (
-        <Text style={[styles.buttonText, variant === 'secondary' && { color: colors.primary }]}>
-          {label}
-        </Text>
+        <>
+          {icon && <Ionicons name={icon as any} size={16} color={tone} />}
+          <Text style={[styles.buttonText, { color: tone }]}>{label}</Text>
+        </>
       )}
     </Pressable>
   );
 }
 
-export function Field({ label, ...rest }: { label: string } & TextInputProps) {
+export function Field({
+  label, hint, icon, ...rest
+}: { label?: string; hint?: string; icon?: string } & TextInputProps) {
   return (
-    <View style={{ marginBottom: spacing.md }}>
-      <Text style={styles.label}>{label}</Text>
-      <TextInput
-        placeholderTextColor={colors.muted}
-        {...rest}
-        style={[styles.input, rest.multiline && { height: 96, textAlignVertical: 'top' }]}
-      />
+    <View style={{ gap: spacing.xs }}>
+      {label && <Text style={styles.fieldLabel}>{label}</Text>}
+      <View style={[styles.inputWrap, rest.multiline && { alignItems: 'flex-start' }]}>
+        {icon && (
+          <Ionicons
+            name={icon as any}
+            size={16}
+            color={colors.textMuted}
+            style={{ marginTop: rest.multiline ? 3 : 0 }}
+          />
+        )}
+        <TextInput
+          placeholderTextColor={colors.textMuted}
+          {...rest}
+          style={[styles.input, rest.multiline && { height: 84, textAlignVertical: 'top' }]}
+        />
+      </View>
+      {hint && <Text style={styles.hint}>{hint}</Text>}
     </View>
   );
 }
 
-/** The one badge that tells a citizen where their ticket stands. */
-export function StatusPill({ status }: { status: string }) {
-  const style = statusStyles[status] ?? { label: status, color: colors.muted };
+/** The pill filter row from the Orders view. */
+export function Tabs<T extends string>({
+  options, value, onChange,
+}: {
+  options: { key: T; label: string; count?: number }[];
+  value: T;
+  onChange: (key: T) => void;
+}) {
   return (
-    <View style={[styles.pill, { backgroundColor: `${style.color}1A` }]}>
-      <View style={[styles.dot, { backgroundColor: style.color }]} />
-      <Text style={[styles.pillText, { color: style.color }]}>{style.label}</Text>
+    <View style={styles.tabs}>
+      {options.map((option) => {
+        const active = option.key === value;
+        return (
+          <Pressable
+            key={option.key}
+            onPress={() => onChange(option.key)}
+            style={({ pressed }) => [
+              styles.tab,
+              active && styles.tabActive,
+              pressed && { opacity: 0.75 },
+            ]}
+          >
+            <Text style={[styles.tabText, active && { color: colors.text }]}>
+              {option.label}
+            </Text>
+            {option.count != null && (
+              <Text style={[styles.tabCount, active && { color: colors.textDim }]}>
+                {option.count}
+              </Text>
+            )}
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
 
-export function SeverityPill({ severity }: { severity: string }) {
-  const color = severityColors[severity] ?? colors.muted;
+/** The square check used for row selection. */
+export function Checkbox({ checked, onToggle }: { checked: boolean; onToggle: () => void }) {
   return (
-    <View style={[styles.pill, { backgroundColor: `${color}1A` }]}>
-      <Text style={[styles.pillText, { color }]}>{severity} severity</Text>
+    <Pressable onPress={onToggle} hitSlop={8}>
+      <View style={[styles.checkbox, checked && styles.checkboxOn]}>
+        {checked && <Ionicons name="checkmark" size={13} color={colors.bg} />}
+      </View>
+    </Pressable>
+  );
+}
+
+// ------------------------------------------------------------------ chips ---
+
+function Chip({ style: chipStyle, color, icon, label }: any) {
+  return (
+    <View style={[styles.chip, { backgroundColor: tint(color, 0.12) }, chipStyle]}>
+      <Ionicons name={icon} size={12} color={color} />
+      <Text style={[styles.chipText, { color }]}>{label}</Text>
     </View>
   );
 }
+
+export function StatusChip({ status }: { status: string }) {
+  const style = statusStyles[status] ?? {
+    label: status, color: colors.textMuted, icon: 'ellipse-outline',
+  };
+  return <Chip color={style.color} icon={style.icon} label={style.label} />;
+}
+
+export function SeverityChip({ severity }: { severity: string }) {
+  const style = severityStyles[severity] ?? severityStyles.medium;
+  return <Chip color={style.color} icon={style.icon} label={style.label} />;
+}
+
+export function PipeStatusChip({ status }: { status: string }) {
+  const style = pipeStatusStyles[status] ?? pipeStatusStyles.decommissioned;
+  return <Chip color={style.color} icon={style.icon} label={style.label} />;
+}
+
+// ------------------------------------------------------------------- data ---
+
+/** A headline figure with its label and an optional signed delta. */
+export function Stat({
+  value, label, delta, tone = colors.text,
+}: {
+  value: number | string;
+  label: string;
+  delta?: { value: string; direction: 'up' | 'down'; good?: boolean };
+  tone?: string;
+}) {
+  const deltaColor = delta
+    ? (delta.direction === 'up') === (delta.good ?? true)
+      ? colors.success
+      : colors.danger
+    : colors.textMuted;
+
+  return (
+    <View style={styles.stat}>
+      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={[styles.statValue, { color: tone }]}>{value}</Text>
+      {delta && (
+        <View style={styles.statDelta}>
+          <Ionicons
+            name={delta.direction === 'up' ? 'arrow-up' : 'arrow-down'}
+            size={11}
+            color={deltaColor}
+          />
+          <Text style={[styles.statDeltaText, { color: deltaColor }]}>{delta.value}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+/**
+ * The segmented heat meter. Filled segments run along a red→green ramp, so a
+ * short bar reads as a problem at a glance without needing the number.
+ */
+export function Meter({
+  value, max, segments = 16, invert = false,
+}: {
+  value: number;
+  max: number;
+  segments?: number;
+  /** true when a high value is bad (leak counts), false when high is good (condition). */
+  invert?: boolean;
+}) {
+  const ratio = max > 0 ? Math.min(1, Math.max(0, value / max)) : 0;
+  const filled = Math.max(1, Math.round(ratio * segments));
+
+  return (
+    <View style={styles.meter}>
+      {Array.from({ length: segments }).map((_, index) => {
+        const on = index < filled;
+        // Position on the ramp: reversed when a high value is the bad outcome.
+        const position = invert ? 1 - index / (segments - 1) : index / (segments - 1);
+        const color = heatRamp[Math.min(heatRamp.length - 1, Math.floor(position * heatRamp.length))];
+        return (
+          <View
+            key={index}
+            style={[
+              styles.meterSegment,
+              { backgroundColor: on ? color : colors.borderSoft },
+            ]}
+          />
+        );
+      })}
+    </View>
+  );
+}
+
+// ------------------------------------------------------------------ state ---
 
 export function ErrorText({ children }: { children: React.ReactNode }) {
   if (!children) return null;
-  return <Text style={styles.error}>{children}</Text>;
+  return (
+    <View style={styles.errorBox}>
+      <Ionicons name="alert-circle" size={15} color={colors.danger} />
+      <Text style={styles.errorText}>{children}</Text>
+    </View>
+  );
 }
 
 export function Loading() {
   return (
     <View style={styles.loading}>
-      <ActivityIndicator size="large" color={colors.primary} />
+      <ActivityIndicator size="large" color={colors.accent} />
     </View>
   );
 }
 
-export function Empty({ text }: { text: string }) {
+export function Empty({ icon = 'file-tray-outline', text }: { icon?: string; text: string }) {
   return (
-    <Card style={{ alignItems: 'center' }}>
+    <Card style={styles.empty}>
+      <Ionicons name={icon as any} size={26} color={colors.textMuted} />
       <Text style={styles.muted}>{text}</Text>
     </Card>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  screenContent: { padding: spacing.md, alignItems: 'center' },
-  container: { width: '100%', gap: spacing.md },
+export function Divider() {
+  return <View style={styles.divider} />;
+}
 
+// ------------------------------------------------------------------ styles ---
+
+const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.card,
-    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.md,
     gap: spacing.sm,
   },
+  panelHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  panelTitle: { color: colors.text, fontSize: 15, fontWeight: '600' },
 
-  title: { fontSize: 24, fontWeight: '700', color: colors.text },
-  subtitle: { fontSize: 16, fontWeight: '600', color: colors.text },
-  muted: { fontSize: 14, color: colors.muted, lineHeight: 20 },
-  label: { fontSize: 13, fontWeight: '600', color: colors.text, marginBottom: spacing.xs },
-
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-    borderRadius: radius.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: colors.text,
+  muted: { fontSize: 13, lineHeight: 19, color: colors.textMuted, textAlign: 'center' },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textMuted,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
 
   button: {
-    backgroundColor: colors.primary,
-    borderRadius: radius.sm,
-    paddingVertical: 14,
-    paddingHorizontal: spacing.lg,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 48,
+    gap: spacing.sm,
+    borderRadius: radius.md,
+    paddingVertical: 12,
+    paddingHorizontal: spacing.md,
+    minHeight: 44,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
-  buttonSecondary: { backgroundColor: colors.primarySoft },
-  buttonDanger: { backgroundColor: colors.danger },
-  buttonText: { color: '#fff', fontWeight: '600', fontSize: 15 },
+  buttonPrimary: { backgroundColor: colors.accent },
+  buttonGhost: { backgroundColor: colors.surfaceRaised, borderColor: colors.border },
+  buttonDanger: { backgroundColor: tint(colors.danger, 0.12), borderColor: tint(colors.danger, 0.3) },
+  buttonText: { fontWeight: '600', fontSize: 14 },
 
-  pill: {
+  fieldLabel: { fontSize: 12, fontWeight: '600', color: colors.textDim },
+  inputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+  },
+  input: {
+    flex: 1,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: colors.text,
+    // Removes the default focus outline on web without losing the border.
+    ...({ outlineStyle: 'none' } as any),
+  },
+  hint: { fontSize: 12, color: colors.textMuted },
+
+  tabs: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+  tab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  tabActive: { backgroundColor: colors.surfaceRaised, borderColor: colors.border },
+  tabText: { fontSize: 13, fontWeight: '500', color: colors.textMuted },
+  tabCount: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
+
+  checkbox: {
+    width: 18,
+    height: 18,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceRaised,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxOn: { backgroundColor: colors.accent, borderColor: colors.accent },
+
+  chip: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    gap: spacing.xs,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
+    gap: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
   },
-  pillText: { fontSize: 12, fontWeight: '600', textTransform: 'capitalize' },
-  dot: { width: 7, height: 7, borderRadius: 999 },
+  chipText: { fontSize: 11.5, fontWeight: '600' },
 
-  error: { color: colors.danger, fontSize: 14, marginBottom: spacing.sm },
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  stat: {
+    flexGrow: 1,
+    flexBasis: 150,
+    gap: 3,
+    paddingVertical: spacing.sm,
+    paddingRight: spacing.md,
+  },
+  statLabel: { fontSize: 12, color: colors.textMuted },
+  statValue: { fontSize: 28, fontWeight: '700', letterSpacing: -0.6 },
+  statDelta: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  statDeltaText: { fontSize: 11, fontWeight: '600' },
+
+  meter: { flexDirection: 'row', gap: 2, alignItems: 'center' },
+  meterSegment: { flex: 1, height: 8, borderRadius: 2 },
+
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: tint(colors.danger, 0.1),
+    borderWidth: 1,
+    borderColor: tint(colors.danger, 0.25),
+    borderRadius: radius.md,
+    padding: spacing.sm + 2,
+  },
+  errorText: { color: colors.danger, fontSize: 13, flex: 1 },
+
+  loading: {
+    flex: 1,
+    minHeight: 240,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.bg,
+  },
+  empty: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.lg },
+  divider: { height: 1, backgroundColor: colors.borderSoft },
 });

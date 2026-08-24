@@ -1,20 +1,22 @@
 import { useEffect, useState } from 'react';
 import { router } from 'expo-router';
 import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 
 import { api, ApiError } from '../../src/api';
 import { useAuth } from '../../src/auth';
 import { buildFormData, queueReport } from '../../src/offlineQueue';
+import AppShell from '../../src/components/AppShell';
 import MapPanel from '../../src/components/MapPanel';
-import { Button, Card, ErrorText, Field, Muted, Screen, Subtitle } from '../../src/components/ui';
-import { colors, radius, severityColors, spacing } from '../../src/theme';
+import { Button, Card, ErrorText, Field, Label, Panel } from '../../src/components/ui';
+import { colors, radius, severityStyles, spacing, tint } from '../../src/theme';
 
 const SEVERITIES = [
-  { key: 'low', label: 'Small', hint: 'A trickle or damp patch' },
-  { key: 'medium', label: 'Steady', hint: 'Water running continuously' },
-  { key: 'high', label: 'Burst', hint: 'Flooding or a strong jet' },
+  { key: 'low', label: 'Small', hint: 'A trickle or damp patch', icon: 'water-outline' },
+  { key: 'medium', label: 'Steady', hint: 'Running continuously', icon: 'rainy-outline' },
+  { key: 'high', label: 'Burst', hint: 'Flooding or a strong jet', icon: 'warning-outline' },
 ];
 
 export default function NewReport() {
@@ -100,62 +102,90 @@ export default function NewReport() {
   }
 
   return (
-    <Screen>
-      <Card>
-        <Subtitle>Where is the leak?</Subtitle>
-        {locating ? (
-          <Muted>Finding your location…</Muted>
-        ) : coords ? (
+    <AppShell
+      title="Report a leak"
+      subtitle="Three things: where it is, what it looks like, and how bad it is."
+      back
+    >
+      <Panel
+        title="Location"
+        action={
+          <View style={styles.gpsTag}>
+            <Ionicons
+              name={coords ? 'locate' : 'locate-outline'}
+              size={12}
+              color={coords ? colors.accent : colors.textMuted}
+            />
+            <Text style={[styles.gpsText, coords && { color: colors.accent }]}>
+              {locating ? 'Locating…' : coords ? 'GPS locked' : 'Unavailable'}
+            </Text>
+          </View>
+        }
+      >
+        {coords ? (
           <>
             <MapPanel
               center={coords}
               markers={[{ id: 'me', ...coords, title: 'Leak location', severity }]}
-              height={200}
+              height={210}
             />
-            <Muted>
-              {coords.latitude.toFixed(5)}, {coords.longitude.toFixed(5)} — captured from your
-              phone's GPS.
-            </Muted>
+            <Text style={styles.coords}>
+              {coords.latitude.toFixed(5)}, {coords.longitude.toFixed(5)}
+            </Text>
           </>
         ) : (
-          <Muted>Location unavailable.</Muted>
+          <View style={styles.placeholder}>
+            <Ionicons name="location-outline" size={22} color={colors.textMuted} />
+            <Text style={styles.placeholderText}>
+              {locating ? 'Finding your location…' : 'Location unavailable.'}
+            </Text>
+          </View>
         )}
-      </Card>
+      </Panel>
 
-      <Card>
-        <Subtitle>Photo of the leak</Subtitle>
-        <Muted>A picture lets WASAC judge the severity before a technician arrives.</Muted>
-        {photoUri && <Image source={{ uri: photoUri }} style={styles.preview} />}
-        <Button
-          label={photoUri ? 'Take a different photo' : 'Take a photo'}
-          variant="secondary"
-          onPress={takePhoto}
-        />
-      </Card>
+      <Panel title="Photo of the leak">
+        <Text style={styles.help}>
+          A picture lets WASAC judge the severity before a technician arrives.
+        </Text>
+        {photoUri ? (
+          <View>
+            <Image source={{ uri: photoUri }} style={styles.preview} />
+            <Pressable onPress={() => setPhotoUri(null)} style={styles.clearPhoto} hitSlop={8}>
+              <Ionicons name="close" size={14} color={colors.text} />
+            </Pressable>
+          </View>
+        ) : (
+          <Pressable onPress={takePhoto} style={styles.dropzone}>
+            <Ionicons name="camera-outline" size={26} color={colors.textMuted} />
+            <Text style={styles.dropzoneText}>Take a photo</Text>
+          </Pressable>
+        )}
+        {photoUri && (
+          <Button label="Take a different photo" variant="ghost" icon="camera-outline"
+                  onPress={takePhoto} />
+        )}
+      </Panel>
 
-      <Card>
-        <Subtitle>How bad is it?</Subtitle>
+      <Panel title="How bad is it?">
         <View style={styles.severityRow}>
           {SEVERITIES.map((option) => {
             const selected = severity === option.key;
+            const tone = severityStyles[option.key].color;
             return (
               <Pressable
                 key={option.key}
                 onPress={() => setSeverity(option.key)}
                 style={[
                   styles.severity,
-                  selected && {
-                    borderColor: severityColors[option.key],
-                    backgroundColor: `${severityColors[option.key]}14`,
-                  },
+                  selected && { borderColor: tone, backgroundColor: tint(tone, 0.1) },
                 ]}
               >
-                <Text
-                  style={[
-                    styles.severityLabel,
-                    selected && { color: severityColors[option.key] },
-                  ]}
-                >
+                <Ionicons
+                  name={option.icon as any}
+                  size={18}
+                  color={selected ? tone : colors.textMuted}
+                />
+                <Text style={[styles.severityLabel, selected && { color: tone }]}>
                   {option.label}
                 </Text>
                 <Text style={styles.severityHint}>{option.hint}</Text>
@@ -163,34 +193,77 @@ export default function NewReport() {
             );
           })}
         </View>
-      </Card>
+      </Panel>
 
-      <Card>
+      <Panel title="Details">
+        <Label>Anything else WASAC should know?</Label>
         <Field
-          label="Anything else WASAC should know?"
           value={description}
           onChangeText={setDescription}
           placeholder="Near the market entrance, water crossing the road…"
           multiline
         />
         <ErrorText>{error}</ErrorText>
-        <Button label="Send report" onPress={submit} loading={busy} disabled={!coords} />
-      </Card>
-    </Screen>
+        <Button label="Send report" icon="paper-plane-outline" onPress={submit}
+                loading={busy} disabled={!coords} />
+      </Panel>
+    </AppShell>
   );
 }
 
 const styles = StyleSheet.create({
-  preview: { width: '100%', height: 200, borderRadius: radius.md, backgroundColor: colors.border },
+  gpsTag: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  gpsText: { fontSize: 11.5, fontWeight: '600', color: colors.textMuted },
+  coords: { color: colors.textMuted, fontSize: 12, fontVariant: ['tabular-nums'] },
+  help: { color: colors.textMuted, fontSize: 12.5, lineHeight: 18 },
+
+  placeholder: {
+    height: 140,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+  },
+  placeholderText: { color: colors.textMuted, fontSize: 12.5 },
+
+  preview: { width: '100%', height: 210, borderRadius: radius.md, backgroundColor: colors.surfaceRaised },
+  clearPhoto: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    width: 26,
+    height: 26,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(10,10,12,0.75)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dropzone: {
+    height: 140,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+    backgroundColor: colors.surfaceRaised,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+  },
+  dropzoneText: { color: colors.textDim, fontSize: 13, fontWeight: '500' },
+
   severityRow: { flexDirection: 'row', gap: spacing.sm },
   severity: {
     flex: 1,
-    borderWidth: 1.5,
+    gap: 3,
+    borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.sm,
-    padding: spacing.sm,
-    gap: 2,
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: radius.md,
+    padding: spacing.sm + 2,
   },
-  severityLabel: { fontWeight: '700', color: colors.text, fontSize: 14 },
-  severityHint: { fontSize: 11, color: colors.muted, lineHeight: 15 },
+  severityLabel: { fontWeight: '600', color: colors.text, fontSize: 13.5 },
+  severityHint: { fontSize: 11, color: colors.textMuted, lineHeight: 15 },
 });
