@@ -1,0 +1,31 @@
+import jwt from 'jsonwebtoken';
+
+const SECRET = process.env.JWT_SECRET || 'iyambere-dev-secret';
+
+export function signToken(user) {
+  return jwt.sign({ id: user.id, role: user.role }, SECRET, { expiresIn: '30d' });
+}
+
+/** Rejects the request unless it carries a valid bearer token. */
+export function requireAuth(req, res, next) {
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+  if (!token) return res.status(401).json({ error: 'Sign in to continue.' });
+
+  try {
+    req.user = jwt.verify(token, SECRET);
+    next();
+  } catch {
+    res.status(401).json({ error: 'Your session has expired. Sign in again.' });
+  }
+}
+
+/** Rejects the request unless the signed-in user holds one of `roles`. */
+export function requireRole(...roles) {
+  return (req, res, next) => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      return res.status(403).json({ error: 'You do not have access to this action.' });
+    }
+    next();
+  };
+}

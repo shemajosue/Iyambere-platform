@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "Iyambere",
+    "slug": "iyambere",
+    "version": "0.1.0",
+    "scheme": "iyambere",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": false,
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0B6FB4"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "rw.iyambere.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Iyambere uses your location to pin the exact spot of the leak you are reporting.",
+        "NSCameraUsageDescription": "Iyambere uses the camera so you can attach a photo of the leak."
+      }
+    },
+    "android": {
+      "package": "rw.iyambere.app",
+      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION", "CAMERA"]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      ["expo-location", {
+        "locationAlwaysAndWhenInUsePermission": "Iyambere uses your location to pin the exact spot of the leak you are reporting."
+      }],
+      ["expo-image-picker", {
+        "photosPermission": "Iyambere needs access to your photos so you can attach a picture of the leak."
+      }]
+    ],
+    "extra": {
+      "apiUrl": "http://localhost:4000"
+    }
+  }
+}
