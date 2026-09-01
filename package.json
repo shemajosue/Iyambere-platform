@@ -1,0 +1,16 @@
+{
+  "name": "iyambere",
+  "private": true,
+  "description": "Optional Prisma tooling. The application itself lives in api/ and app/ and does not use Prisma.",
+  "scripts": {
+    "studio": "node scripts/studio.mjs",
+    "db:pull": "prisma db pull --schema prisma/schema.prisma",
+    "postinstall": "prisma skills sync || exit 0"
+  },
+  "dependencies": {
+    "@prisma/client": "^7.10.0"
+  },
+  "devDependencies": {
+    "prisma": "^8.0.0-rc.12"
+  }
+}

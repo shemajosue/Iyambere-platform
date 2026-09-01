@@ -25,9 +25,10 @@ Aligned with **SDG 6: Clean Water and Sanitation**.
 
 ```
 iyambere/
-├── app/    Expo (React Native + react-native-web)  → Android · iOS · Web, one codebase
-├── api/    Node.js + Express REST API
-└── db/     PostgreSQL schema and seed data
+├── app/      Expo (React Native + react-native-web) → Android · iOS · Web, one codebase
+├── api/      Node.js + Express REST API, talking to PostgreSQL through `pg`
+├── db/       schema.sql — the authoritative database definition
+└── prisma/   optional read-only mirror, for browsing the data in Prisma Studio
 ```
 
 One React Native codebase serves all three platforms. The citizen and technician
@@ -35,22 +36,22 @@ experiences are phone-first; the WASAC operations dashboard renders on the web b
 
 ## Quick start
 
-Prerequisites: **Node.js 18+**, **PostgreSQL 14+**.
+Prerequisites: **Node.js 18+**, and a PostgreSQL database — either local or hosted.
 
 ```bash
-# 1. Database
-createdb iyambere
-psql -d iyambere -f db/schema.sql
-
-# 2. API
 cd api
-cp .env.example .env        # edit DATABASE_URL and JWT_SECRET
+cp .env.example .env        # put your connection string in DATABASE_URL
 npm install
+npm run db:check            # proves the connection before touching anything
+npm run migrate             # creates the schema from db/schema.sql
 npm run seed                # demo accounts, pipeline registry, sample reports
 npm run dev                 # http://localhost:4000
+```
 
-# 3. App
-cd ../app
+Then, in a second terminal:
+
+```bash
+cd app
 npm install
 npm run web                 # dashboard in the browser
 npm start                   # scan the QR code with Expo Go for mobile
@@ -58,6 +59,50 @@ npm start                   # scan the QR code with Expo Go for mobile
 
 Testing on a real phone? `localhost` there means the phone itself, so set
 `apiUrl` in `app/app.json` to your machine's LAN address, e.g. `http://192.168.1.20:4000`.
+
+## Using Aiven (or Neon, Supabase, RDS)
+
+Aiven is ordinary PostgreSQL with TLS required, so nothing in the application
+changes — only `DATABASE_URL`. From the Aiven console, copy the **Service URI**
+into `api/.env`, keeping `?sslmode=require` on the end:
+
+```
+DATABASE_URL=postgres://avnadmin:PASSWORD@HOST.aivencloud.com:PORT/defaultdb?sslmode=require
+```
+
+`sslmode=require` encrypts the connection but does not verify *who* answered it.
+To verify the server's identity too, download **CA Certificate** from the same
+page and point at it:
+
+```
+PGSSLROOTCERT=./certs/ca.pem
+```
+
+Without it the API still connects, but logs a warning at startup — fine while
+developing, not fine in production. Run `npm run db:check` first: it reports the
+database, the user, whether TLS actually engaged, and translates the common
+failures (wrong port, missing `sslmode`, IP not allowed) into what to fix.
+
+Aiven names the default database `defaultdb`, not `iyambere`, and uses a custom
+port rather than 5432. Both are already in the URI it gives you — paste it whole.
+
+## Browsing the data (optional)
+
+`prisma/schema.prisma` is a **read-only mirror** of the database, kept only so
+you can inspect a live Aiven instance in a GUI:
+
+```bash
+npm install       # in the repo root, once
+npm run studio    # reads the same api/.env
+```
+
+It is not a migration source and the application never imports Prisma — the API
+talks to PostgreSQL directly through `pg`. Three things in `db/schema.sql`
+cannot be expressed in Prisma at all: the generated `deviation_pct` column, the
+`ticket_ref` sequence default, and the `pressure_anomalies` /
+`technician_performance` views that the dashboard reads. Running
+`prisma migrate` or `prisma db push` would destroy them, so don't. After editing
+`db/schema.sql`, refresh the mirror with `npm run db:pull`.
 
 ## Demo accounts
 

@@ -1,0 +1,179 @@
+// ---------------------------------------------------------------------------
+// READ-ONLY MIRROR — this file does not create or migrate anything.
+//
+// db/schema.sql is the authoritative definition of the Iyambere database, and
+// `npm run migrate` in api/ is what applies it. This schema exists only so you
+// can browse a live database with `npm run studio`.
+//
+// Do NOT run `prisma migrate` or `prisma db push` against it. Three things in
+// the real schema cannot be expressed here, and pushing this file would
+// silently destroy them:
+//
+//   1. pressure_readings.deviation_pct is a GENERATED ALWAYS column.
+//   2. reports.ticket_ref defaults from the ticket_ref_seq sequence.
+//   3. The views pressure_anomalies and technician_performance, which
+//      api/src/routes/stats.js and pressure.js query directly.
+//
+// After changing db/schema.sql, refresh this file with:  npx prisma db pull
+// ---------------------------------------------------------------------------
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+
+// ---------------------------------------------------------------- Enums ----
+
+enum UserRole {
+  citizen
+  technician
+  supervisor
+}
+
+enum LeakSeverity {
+  low
+  medium
+  high
+}
+
+enum PipeStatus {
+  active
+  inactive
+  decommissioned
+}
+
+enum ReportStatus {
+  submitted
+  assigned
+  accepted
+  on_site
+  resolved
+  verified
+  rejected
+}
+
+// ---------------------------------------------------------------- Models ----
+
+model User {
+  id           Int           @id @default(autoincrement())
+  fullName     String        @map("full_name")
+  phone        String        @unique
+  email        String?
+  passwordHash String        @map("password_hash")
+  role         UserRole      @default(citizen)
+  district     String?
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  reportsSubmitted Report[]      @relation("ReporterRelation")
+  reportsAssigned  Report[]      @relation("AssigneeRelation")
+  reportEvents     ReportEvent[]
+
+  @@map("users")
+}
+
+model Pipe {
+  id                Int               @id @default(autoincrement())
+  code              String            @unique
+  district          String
+  material          String?
+  diameterMm        Int?              @map("diameter_mm")
+  installedOn       DateTime?         @map("installed_on") @db.Date
+  designPressureBar Decimal?          @map("design_pressure_bar") @db.Decimal(5, 2)
+  /// Postgres enforces CHECK (condition_score BETWEEN 1 AND 5).
+  conditionScore    Int?              @map("condition_score")
+  status            PipeStatus        @default(active)
+  lastMaintenanceOn DateTime?         @map("last_maintenance_on") @db.Date
+  path              Json              @default("[]")
+  notes             String?
+  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  reports           Report[]
+  pressureReadings  PressureReading[]
+
+  @@index([district], map: "pipes_district_idx")
+  @@index([status], map: "pipes_status_idx")
+  @@map("pipes")
+}
+
+model Report {
+  id                 Int          @id @default(autoincrement())
+  /// Filled by Postgres from ticket_ref_seq as IYB-000001, IYB-000002, ...
+  ticketRef          String       @unique @map("ticket_ref") @default(dbgenerated())
+  reporterId         Int          @map("reporter_id")
+  description        String?
+  severity           LeakSeverity @default(medium)
+  status             ReportStatus @default(submitted)
+  latitude           Decimal      @db.Decimal(9, 6)
+  longitude          Decimal      @db.Decimal(9, 6)
+  district           String?
+  photoUrl           String?      @map("photo_url")
+  pipeId             Int?         @map("pipe_id")
+  assignedTo         Int?         @map("assigned_to")
+  
+  // Timestamps
+  assignedAt         DateTime?    @map("assigned_at") @db.Timestamptz
+  acceptedAt         DateTime?    @map("accepted_at") @db.Timestamptz
+  arrivedAt          DateTime?    @map("arrived_at") @db.Timestamptz
+  resolvedAt         DateTime?    @map("resolved_at") @db.Timestamptz
+  verifiedAt         DateTime?    @map("verified_at") @db.Timestamptz
+  createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  /// Maintained by the reports_touch_updated_at trigger, not by the client.
+  updatedAt          DateTime     @default(now()) @map("updated_at") @db.Timestamptz
+
+  resolutionNotes    String?      @map("resolution_notes")
+  resolutionPhotoUrl String?      @map("resolution_photo_url")
+
+  // Relations
+  reporter           User         @relation("ReporterRelation", fields: [reporterId], references: [id])
+  pipe               Pipe?        @relation(fields: [pipeId], references: [id])
+  assignee           User?        @relation("AssigneeRelation", fields: [assignedTo], references: [id])
+  events             ReportEvent[]
+
+  @@index([status], map: "reports_status_idx")
+  @@index([assignedTo], map: "reports_assigned_idx")
+  @@index([reporterId], map: "reports_reporter_idx")
+  @@index([createdAt(sort: Desc)], map: "reports_created_idx")
+  @@map("reports")
+}
+
+model ReportEvent {
+  id        Int          @id @default(autoincrement())
+  reportId  Int          @map("report_id")
+  actorId   Int?         @map("actor_id")
+  status    ReportStatus
+  note      String?
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  report    Report       @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  actor     User?        @relation(fields: [actorId], references: [id])
+
+  @@index([reportId, createdAt], map: "report_events_report_idx")
+  @@map("report_events")
+}
+
+model PressureReading {
+  id                Int      @id @default(autoincrement())
+  pipeId            Int      @map("pipe_id")
+  nodeRef           String   @map("node_ref")
+  measuredBar       Decimal  @map("measured_bar") @db.Decimal(5, 2)
+  epanetExpectedBar Decimal  @map("epanet_expected_bar") @db.Decimal(5, 2)
+  recordedAt        DateTime @default(now()) @map("recorded_at") @db.Timestamptz
+  
+  /// GENERATED ALWAYS in Postgres — read-only. Writing to it raises an error.
+  deviationPct      Decimal  @map("deviation_pct") @db.Decimal(6, 2)
+
+  // Relations
+  pipe              Pipe     @relation(fields: [pipeId], references: [id], onDelete: Cascade)
+
+  @@index([pipeId, recordedAt(sort: Desc)], map: "pressure_pipe_idx")
+  @@map("pressure_readings")
+}
