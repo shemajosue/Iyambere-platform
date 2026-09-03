@@ -6,7 +6,7 @@ export type { MapMarker, MapLine, MapPanelProps } from './MapPanel';
 export const DEFAULT_CENTER = { latitude: -1.9441, longitude: 30.0619 };
 
 /**
- * Web map. Leaflet on dark Carto tiles inside a sandboxed iframe, which keeps
+ * Web map. Leaflet inside a sandboxed iframe, which keeps
  * the mapping library out of the React Native bundle entirely — the native
  * build uses MapPanel.tsx and never sees this file.
  */
@@ -73,6 +73,15 @@ function buildHtml({ markers, lines, focus }: any) {
     <style>
       html, body, #map { height: 100%; margin: 0; background: ${colors.bg}; }
       .leaflet-container { background: ${colors.bg}; font-family: system-ui, sans-serif; }
+      /* OpenStreetMap only publishes a light basemap, and every hosted dark one
+         wants an API key. Inverting the tile pane and rotating the hue back gives
+         a dark map from the free tiles: roads stay light on dark, labels stay
+         readable, and greens/blues keep roughly their real hue. The filter is on
+         the tile pane alone, so incident markers and pipe lines above it keep the
+         exact palette the rest of the interface uses. */
+      .leaflet-tile-pane {
+        filter: invert(1) hue-rotate(180deg) brightness(0.86) contrast(0.9) saturate(0.35);
+      }
       .leaflet-popup-content-wrapper, .leaflet-popup-tip {
         background: ${colors.surfaceRaised};
         color: ${colors.text};
@@ -99,11 +108,18 @@ function buildHtml({ markers, lines, focus }: any) {
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
       var data = ${data};
-      var map = L.map('map', { zoomControl: true, attributionControl: true })
-        .setView([data.focus.latitude, data.focus.longitude], 13);
+      // The map is one panel among many on the dashboard, so it must not swallow
+      // the page scroll. The wheel zooms only after a deliberate click on the
+      // map, and goes back to scrolling the page as soon as the pointer leaves.
+      var map = L.map('map', {
+        zoomControl: true, attributionControl: true, scrollWheelZoom: false
+      }).setView([data.focus.latitude, data.focus.longitude], 13);
 
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap &copy; CARTO', maxZoom: 20, subdomains: 'abcd'
+      map.on('click', function () { map.scrollWheelZoom.enable(); });
+      map.on('mouseout', function () { map.scrollWheelZoom.disable(); });
+
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors', maxZoom: 19
       }).addTo(map);
 
       data.lines.forEach(function (line) {
