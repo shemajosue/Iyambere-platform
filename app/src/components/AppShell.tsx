@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import {
   Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View,
 } from 'react-native';
@@ -18,11 +19,13 @@ const NAV: Record<Role, NavItem[]> = {
   ],
   technician: [
     { href: '/technician', icon: 'construct-outline', label: 'My jobs' },
+    { href: '/technician/registry', icon: 'git-network-outline', label: 'Pipe registry' },
   ],
   supervisor: [
     { href: '/ops', icon: 'grid-outline', label: 'Overview' },
     { href: '/ops/pipes', icon: 'git-network-outline', label: 'Registry' },
     { href: '/ops/pressure', icon: 'pulse-outline', label: 'Pressure' },
+    { href: '/admin', icon: 'people-outline', label: 'Admin panel' },
   ],
 };
 
@@ -41,9 +44,19 @@ export default function AppShell({
   children: React.ReactNode;
 }) {
   const isWide = useIsWide();
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const pathname = usePathname();
-  const items = user ? NAV[user.role] : [];
+
+  // Signing out — or a session expiring — must clear the screen, not just the
+  // navigation. Every screen renders through AppShell, so guarding here means
+  // no page can be left showing the previous user's data.
+  useEffect(() => {
+    if (!loading && !user) router.replace('/login');
+  }, [loading, user]);
+
+  if (!user) return <View style={styles.root} />;
+
+  const items = NAV[user.role];
 
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>

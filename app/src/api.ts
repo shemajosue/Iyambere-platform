@@ -76,6 +76,15 @@ export const api = {
     request(`/api/pipes/${id}`, { method: 'PATCH', ...json(patch) }),
   pressureAnomalies: () => request('/api/pressure/anomalies'),
 
+  // --- accounts (supervisor only) ---
+  listUsers: (params = '') => request(`/api/users${params}`),
+  createUser: (payload: Record<string, unknown>) =>
+    request('/api/users', { method: 'POST', ...json(payload) }),
+  updateUser: (id: number, patch: Record<string, unknown>) =>
+    request(`/api/users/${id}`, { method: 'PATCH', ...json(patch) }),
+  setUserPassword: (id: number, password: string) =>
+    request(`/api/users/${id}/password`, { method: 'POST', ...json({ password }) }),
+
   // --- analytics ---
   overview: () => request('/api/stats/overview'),
   technicianPerformance: () => request('/api/stats/technicians'),

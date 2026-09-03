@@ -9,6 +9,7 @@ import reportRoutes from './routes/reports.js';
 import pipeRoutes from './routes/pipes.js';
 import pressureRoutes from './routes/pressure.js';
 import statsRoutes from './routes/stats.js';
+import userRoutes from './routes/users.js';
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/pipes', pipeRoutes);
 app.use('/api/pressure', pressureRoutes);
 app.use('/api/stats', statsRoutes);
+app.use('/api/users', userRoutes);
 
 app.use((_req, res) => res.status(404).json({ error: 'Endpoint not found.' }));
 

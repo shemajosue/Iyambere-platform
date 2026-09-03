@@ -56,7 +56,8 @@ router.get('/technicians/available', requireRole('supervisor'), async (req, res)
             ) AS open_jobs
        FROM users u
        LEFT JOIN reports r ON r.assigned_to = u.id
-      WHERE u.role = 'technician' AND ($1::text IS NULL OR u.district = $1)
+      WHERE u.role = 'technician' AND u.is_active
+        AND ($1::text IS NULL OR u.district = $1)
       GROUP BY u.id
       ORDER BY open_jobs, u.full_name`,
     [district || null]

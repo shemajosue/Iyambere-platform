@@ -6,6 +6,12 @@ import pg from 'pg';
 // analytics averages are all NUMERIC, and the app wants numbers.
 pg.types.setTypeParser(1700, (value) => (value === null ? null : parseFloat(value)));
 
+// DATE columns have no time and no timezone, but the driver turns them into a
+// JS Date at *local* midnight. Serialised to JSON from Rwanda (UTC+2) that
+// becomes 22:00 the previous day, so a maintenance date entered on the 3rd
+// reads back as the 2nd. Keep them as the 'YYYY-MM-DD' string Postgres stored.
+pg.types.setTypeParser(1082, (value) => value);
+
 const DATABASE_URL =
   process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/iyambere';
 

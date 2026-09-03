@@ -1,5 +1,6 @@
 import {
-  ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View,
+  ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput,
+  useWindowDimensions, View,
   type TextInputProps, type ViewProps,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -260,6 +261,68 @@ export function Meter({
   );
 }
 
+/**
+ * A centred panel over a dimmed page, for a form that would otherwise need its
+ * own screen. Scrolls internally so a long form still works on a short phone.
+ */
+export function Sheet({
+  open, title, subtitle, onClose, children, footer,
+}: {
+  open: boolean;
+  title: string;
+  subtitle?: string;
+  onClose: () => void;
+  children: React.ReactNode;
+  /** Actions pinned below the scroll area, so the primary button is never scrolled out of sight. */
+  footer?: React.ReactNode;
+}) {
+  const { height } = useWindowDimensions();
+
+  return (
+    <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.scrim}>
+        {/* Tapping the dimmed area behind the panel closes it. */}
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={styles.sheet}>
+          <View style={styles.sheetHead}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.sheetTitle}>{title}</Text>
+              {subtitle ? <Text style={styles.sheetSubtitle}>{subtitle}</Text> : null}
+            </View>
+            <Pressable onPress={onClose} hitSlop={10} style={styles.sheetClose}>
+              <Ionicons name="close" size={17} color={colors.textDim} />
+            </Pressable>
+          </View>
+
+          <ScrollView
+            style={{ maxHeight: Math.max(220, height * 0.55) }}
+            contentContainerStyle={styles.sheetBody}
+            keyboardShouldPersistTaps="handled"
+          >
+            {children}
+          </ScrollView>
+
+          {footer ? <View style={styles.sheetFoot}>{footer}</View> : null}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+/** A round monogram, used wherever a person is listed. */
+export function Avatar({ name, tone = colors.accent }: { name: string; tone?: string }) {
+  const initials = name
+    .split(' ')
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('');
+  return (
+    <View style={[styles.avatar, { backgroundColor: tint(tone, 0.14) }]}>
+      <Text style={[styles.avatarText, { color: tone }]}>{initials || '··'}</Text>
+    </View>
+  );
+}
+
 // ------------------------------------------------------------------ state ---
 
 export function ErrorText({ children }: { children: React.ReactNode }) {
@@ -411,6 +474,52 @@ const styles = StyleSheet.create({
 
   meter: { flexDirection: 'row', gap: 2, alignItems: 'center' },
   meterSegment: { flex: 1, height: 8, borderRadius: 2 },
+
+  scrim: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.md,
+  },
+  sheet: {
+    width: '100%',
+    maxWidth: 460,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+  },
+  sheetHead: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSoft,
+  },
+  sheetTitle: { color: colors.text, fontSize: 16, fontWeight: '600' },
+  sheetSubtitle: { color: colors.textMuted, fontSize: 12.5, marginTop: 2 },
+  sheetClose: {
+    width: 30, height: 30, borderRadius: radius.sm,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.surfaceRaised,
+  },
+  sheetBody: { padding: spacing.md, gap: spacing.md },
+  sheetFoot: {
+    padding: spacing.md,
+    gap: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSoft,
+    backgroundColor: colors.surface,
+  },
+
+  avatar: {
+    width: 32, height: 32, borderRadius: radius.pill,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  avatarText: { fontSize: 11, fontWeight: '700' },
 
   errorBox: {
     flexDirection: 'row',

@@ -5,7 +5,7 @@ import { signToken, requireAuth } from '../auth.js';
 
 const router = Router();
 
-const PUBLIC_FIELDS = 'id, full_name, phone, email, role, district';
+const PUBLIC_FIELDS = 'id, full_name, phone, email, role, district, is_active';
 
 router.post('/register', async (req, res) => {
   const { full_name, phone, password, email, district } = req.body;
@@ -41,6 +41,13 @@ router.post('/login', async (req, res) => {
   const user = rows[0];
   if (!user || !bcrypt.compareSync(password || '', user.password_hash)) {
     return res.status(401).json({ error: 'Wrong phone number or password.' });
+  }
+  // Checked after the password so a wrong guess cannot reveal that an account
+  // exists but has been retired.
+  if (!user.is_active) {
+    return res.status(403).json({
+      error: 'This account has been deactivated. Contact your WASAC supervisor.',
+    });
   }
 
   delete user.password_hash;
