@@ -8,10 +8,11 @@ import { useAuth } from '../src/auth';
 import { Button, Card, ErrorText, Field, Label } from '../src/components/ui';
 import { colors, radius, spacing, tint } from '../src/theme';
 
+/** The three portals, each with a demo account that signs in with one tap. */
 const DEMO = [
-  { phone: '0780000001', role: 'Citizen', detail: 'Report a leak, track the ticket' },
-  { phone: '0780000002', role: 'Technician', detail: 'Accept jobs, close out repairs' },
-  { phone: '0780000003', role: 'WASAC operations', detail: 'Dispatch, registry, pressure' },
+  { phone: '0780000001', role: 'Citizen portal', detail: 'Report a leak, follow the ticket to repair', icon: 'phone-portrait-outline' },
+  { phone: '0780000002', role: 'Technician portal', detail: 'Accept jobs, record arrival, close out repairs', icon: 'construct-outline' },
+  { phone: '0780000003', role: 'WASAC operations portal', detail: 'Leak map, dispatch, registry, EPANET pressure', icon: 'grid-outline' },
 ];
 
 export default function Login() {
@@ -34,9 +35,19 @@ export default function Login() {
     }
   }
 
-  function useDemo(demoPhone: string) {
+  async function openDemo(demoPhone: string) {
     setPhone(demoPhone);
     setPassword('iyambere');
+    setError('');
+    setBusy(true);
+    try {
+      await signIn(demoPhone, 'iyambere');
+      router.replace('/');
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -88,16 +99,19 @@ export default function Login() {
           </Card>
 
           <View style={{ gap: spacing.sm }}>
-            <Label>Demo accounts · password “iyambere”</Label>
+            <Label>Demo · open a portal with one tap (password “iyambere”)</Label>
             {DEMO.map((account) => (
               <Pressable
                 key={account.phone}
-                onPress={() => useDemo(account.phone)}
+                onPress={() => openDemo(account.phone)}
                 style={({ pressed, hovered }: any) => [
                   styles.demo,
                   (pressed || hovered) && { borderColor: tint(colors.accent, 0.4) },
                 ]}
               >
+                <View style={styles.demoIcon}>
+                  <Ionicons name={account.icon as any} size={16} color={colors.accent} />
+                </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.demoRole}>{account.role}</Text>
                   <Text style={styles.demoDetail}>{account.detail}</Text>
@@ -151,6 +165,14 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     paddingVertical: 10,
     paddingHorizontal: spacing.md,
+  },
+  demoIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.sm,
+    backgroundColor: tint(colors.accent, 0.12),
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   demoRole: { color: colors.text, fontSize: 13, fontWeight: '600' },
   demoDetail: { color: colors.textMuted, fontSize: 11.5 },

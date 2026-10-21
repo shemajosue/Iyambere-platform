@@ -9,9 +9,11 @@ import { colors, radius, spacing, tint } from '../../src/theme';
 
 /**
  * Module 3: pressure intelligence.
- * The value here is finding the leaks nobody reported — a pipe failing in a
- * rural zone shows up as a widening gap between the measured pressure and what
- * the EPANET hydraulic model says that node should be reading.
+ * The value here is finding the leaks nobody reported — a failing pipe shows up
+ * as a widening gap between the measured pressure and what the EPANET model
+ * says that node should be reading. In the Kimisagara pilot the measurements
+ * are gauge readings taken by technicians on site (no permanent sensors yet);
+ * loggers can feed the same endpoint later without any change here.
  */
 export default function PressureScreen() {
   const isWide = useIsWide();
@@ -24,7 +26,7 @@ export default function PressureScreen() {
   return (
     <AppShell
       title="Pressure and EPANET"
-      subtitle="Field sensors against the hydraulic model. A widening gap is usually a failure nobody has walked past yet."
+      subtitle="Gauge readings against the EPANET hydraulic model. A widening gap is usually a failure nobody has walked past yet."
       back
     >
       <Card style={styles.statBar}>

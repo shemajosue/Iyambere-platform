@@ -6,11 +6,12 @@
   "type": "module",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js",
+    "start": "node scripts/boot.js",
     "dev": "node --watch src/index.js",
     "db:check": "node scripts/check-db.js",
     "migrate": "node scripts/migrate.js",
-    "seed": "node scripts/seed.js"
+    "seed": "node scripts/seed.js",
+    "import:epanet": "node scripts/import-epanet.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

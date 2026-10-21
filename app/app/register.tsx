@@ -52,7 +52,7 @@ export default function Register() {
                    onChangeText={set('phone')} placeholder="078…"
                    keyboardType="phone-pad" autoCapitalize="none" />
             <Field label="District" icon="location-outline" value={form.district}
-                   onChangeText={set('district')} placeholder="Gasabo"
+                   onChangeText={set('district')} placeholder="Nyarugenge"
                    hint="Used to route your reports to the right WASAC zone." />
             <Field label="Password" icon="lock-closed-outline" value={form.password}
                    onChangeText={set('password')} placeholder="At least 6 characters"

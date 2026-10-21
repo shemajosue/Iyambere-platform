@@ -71,7 +71,8 @@ export function Button({
         variant === 'primary' && styles.buttonPrimary,
         variant === 'ghost' && styles.buttonGhost,
         variant === 'danger' && styles.buttonDanger,
-        (pressed || isDisabled) && { opacity: 0.65 },
+        pressed && { opacity: 0.75 },
+        disabled && !loading && { opacity: 0.4 },
         style,
       ]}
     >
@@ -461,11 +462,15 @@ const styles = StyleSheet.create({
   chipText: { fontSize: 11.5, fontWeight: '600' },
 
   stat: {
+    // A small basis that is allowed to shrink, so three stats fit side by side
+    // on a 360 px phone instead of pushing the last one off the card.
     flexGrow: 1,
-    flexBasis: 150,
+    flexShrink: 1,
+    flexBasis: 90,
+    minWidth: 0,
     gap: 3,
     paddingVertical: spacing.sm,
-    paddingRight: spacing.md,
+    paddingHorizontal: spacing.sm,
   },
   statLabel: { fontSize: 12, color: colors.textMuted },
   statValue: { fontSize: 28, fontWeight: '700', letterSpacing: -0.6 },

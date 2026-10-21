@@ -1,0 +1,29 @@
+# One-click cloud deployment on Render (render.com).
+#
+# In the Render dashboard: New → Blueprint → pick this repository → Apply.
+# Render creates the PostgreSQL database and the web service, wires them
+# together, and gives you a public https://…onrender.com address for all
+# three portals. The first boot loads the Kimisagara demo data.
+
+databases:
+  - name: iyambere-db
+    databaseName: iyambere
+    user: iyambere
+    plan: free
+
+services:
+  - type: web
+    name: iyambere
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: iyambere-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SEED_DEMO
+        value: "true"

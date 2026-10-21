@@ -7,6 +7,16 @@ import { Platform } from 'react-native';
  * e.g. http://192.168.1.20:4000, when testing on a real device.
  */
 function resolveBaseUrl(): string {
+  // A deployed web build is served by the API itself, so it talks to whatever
+  // address it was loaded from. This is what makes one cloud URL work without
+  // rebuilding the app for every host.
+  // The Expo dev server (8081/19006) is the exception: there the API is a
+  // separate process on port 4000, configured below.
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    const devServer = ['8081', '19006'].includes(window.location.port);
+    if (!devServer) return window.location.origin;
+  }
+
   const configured =
     process.env.EXPO_PUBLIC_API_URL ?? (Constants.expoConfig?.extra as any)?.apiUrl;
   if (configured) return String(configured).replace(/\/$/, '');
@@ -68,6 +78,8 @@ export const api = {
   resolveReport: (id: number, form: FormData) =>
     request(`/api/reports/${id}/resolve`, { method: 'POST', body: form }),
   verifyReport: (id: number) => request(`/api/reports/${id}/verify`, { method: 'POST' }),
+  rejectReport: (id: number, reason: string) =>
+    request(`/api/reports/${id}/reject`, { method: 'POST', ...json({ reason }) }),
 
   // --- network ---
   listPipes: (params = '') => request(`/api/pipes${params}`),
@@ -75,6 +87,8 @@ export const api = {
   updatePipe: (id: number, patch: Record<string, unknown>) =>
     request(`/api/pipes/${id}`, { method: 'PATCH', ...json(patch) }),
   pressureAnomalies: () => request('/api/pressure/anomalies'),
+  recordPressure: (reading: { pipe_id: number; node_ref: string; measured_bar: number }) =>
+    request('/api/pressure/readings', { method: 'POST', ...json(reading) }),
 
   // --- accounts (supervisor only) ---
   listUsers: (params = '') => request(`/api/users${params}`),
@@ -84,6 +98,11 @@ export const api = {
     request(`/api/users/${id}`, { method: 'PATCH', ...json(patch) }),
   setUserPassword: (id: number, password: string) =>
     request(`/api/users/${id}/password`, { method: 'POST', ...json({ password }) }),
+
+  // --- map (GeoJSON) ---
+  mapIncidents: (params = '') => request(`/api/map/incidents${params}`),
+  mapNetwork: () => request('/api/map/network'),
+  mapHotspots: (days = 90) => request(`/api/map/hotspots?days=${days}`),
 
   // --- analytics ---
   overview: () => request('/api/stats/overview'),

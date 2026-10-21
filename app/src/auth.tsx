@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api, setAuthToken } from './api';
+import { Loading } from './components/ui';
 
 export type Role = 'citizen' | 'technician' | 'supervisor';
 
@@ -63,7 +64,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  // No screen renders until the saved session is restored. Otherwise a page
+  // opened directly (a reload, a shared link to a ticket) fires its first
+  // request before the token is set and shows "Sign in to continue".
+  return (
+    <AuthContext.Provider value={value}>{loading ? <Loading /> : children}</AuthContext.Provider>
+  );
 }
 
 export function useAuth() {

@@ -23,6 +23,7 @@ const NAV: Record<Role, NavItem[]> = {
   ],
   supervisor: [
     { href: '/ops', icon: 'grid-outline', label: 'Overview' },
+    { href: '/ops/map', icon: 'map-outline', label: 'Leak map' },
     { href: '/ops/pipes', icon: 'git-network-outline', label: 'Registry' },
     { href: '/ops/pressure', icon: 'pulse-outline', label: 'Pressure' },
     { href: '/admin', icon: 'people-outline', label: 'Admin panel' },

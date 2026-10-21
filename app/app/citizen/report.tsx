@@ -9,7 +9,7 @@ import { api, ApiError } from '../../src/api';
 import { useAuth } from '../../src/auth';
 import { buildFormData, queueReport } from '../../src/offlineQueue';
 import AppShell from '../../src/components/AppShell';
-import MapPanel from '../../src/components/MapPanel';
+import MapPanel, { DEFAULT_CENTER } from '../../src/components/MapPanel';
 import { Button, Card, ErrorText, Field, Label, Panel } from '../../src/components/ui';
 import { colors, radius, severityStyles, spacing, tint } from '../../src/theme';
 
@@ -29,25 +29,41 @@ export default function NewReport() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
+  const [pinnedByHand, setPinnedByHand] = useState(false);
+
   // The location is the whole point of the report, so we ask for it up front.
+  // If GPS is refused, unavailable or slow (indoors, a laptop in a meeting
+  // room), the reporter can still tap the map to drop the pin themselves.
   useEffect(() => {
+    let cancelled = false;
     (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setError('Iyambere needs your location to pin the leak. Enable it in settings.');
-        setLocating(false);
-        return;
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') throw new Error('denied');
+        const position = await Promise.race([
+          Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 12000)),
+        ]);
+        if (!cancelled) {
+          setCoords((current) => current ?? {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
+        }
+      } catch {
+        // Fall through to the manual pin; nothing to report as an error.
+      } finally {
+        if (!cancelled) setLocating(false);
       }
-      const position = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      });
-      setCoords({
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-      });
-      setLocating(false);
     })();
+    return () => { cancelled = true; };
   }, []);
+
+  function pinByHand(point: { latitude: number; longitude: number }) {
+    setCoords(point);
+    setPinnedByHand(true);
+    setError('');
+  }
 
   async function takePhoto() {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
@@ -61,7 +77,7 @@ export default function NewReport() {
 
   async function submit() {
     if (!coords) {
-      setError('Waiting for your location. Move outside if the signal is weak.');
+      setError('Tap the map to show where the leak is.');
       return;
     }
 
@@ -117,30 +133,29 @@ export default function NewReport() {
               color={coords ? colors.accent : colors.textMuted}
             />
             <Text style={[styles.gpsText, coords && { color: colors.accent }]}>
-              {locating ? 'Locating…' : coords ? 'GPS locked' : 'Unavailable'}
+              {locating && !coords
+                ? 'Locating…'
+                : coords
+                  ? pinnedByHand ? 'Pinned on map' : 'GPS locked'
+                  : 'Tap the map'}
             </Text>
           </View>
         }
       >
-        {coords ? (
-          <>
-            <MapPanel
-              center={coords}
-              markers={[{ id: 'me', ...coords, title: 'Leak location', severity }]}
-              height={210}
-            />
-            <Text style={styles.coords}>
-              {coords.latitude.toFixed(5)}, {coords.longitude.toFixed(5)}
-            </Text>
-          </>
-        ) : (
-          <View style={styles.placeholder}>
-            <Ionicons name="location-outline" size={22} color={colors.textMuted} />
-            <Text style={styles.placeholderText}>
-              {locating ? 'Finding your location…' : 'Location unavailable.'}
-            </Text>
-          </View>
-        )}
+        <MapPanel
+          center={coords ?? DEFAULT_CENTER}
+          zoom={coords ? 16 : 14}
+          markers={coords ? [{ id: 'me', ...coords, title: 'Leak location', severity }] : []}
+          onMapPress={pinByHand}
+          height={240}
+        />
+        <Text style={styles.coords}>
+          {coords
+            ? `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)} · tap the map to move the pin`
+            : locating
+              ? 'Finding your location… or tap the map where the leak is.'
+              : 'Location is off. Tap the map exactly where the leak is.'}
+        </Text>
       </Panel>
 
       <Panel title="Photo of the leak">
