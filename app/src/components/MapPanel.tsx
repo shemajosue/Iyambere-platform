@@ -8,6 +8,8 @@ export type MapMarker = {
   longitude: number;
   title?: string;
   severity?: string;
+  /** Overrides the severity colour, e.g. to show repaired leaks in green. */
+  color?: string;
 };
 
 export type MapLine = {
@@ -16,6 +18,8 @@ export type MapLine = {
   path: [number, number][];
   status?: string;
   title?: string;
+  /** Overrides the status colour, e.g. red for a pipe under a pressure alert. */
+  color?: string;
 };
 
 export type MapPanelProps = {
@@ -24,10 +28,14 @@ export type MapPanelProps = {
   center?: { latitude: number; longitude: number };
   height?: number;
   onMarkerPress?: (id: number | string) => void;
+  /** When set, tapping the map reports the tapped point — used to drop a leak pin by hand. */
+  onMapPress?: (coords: { latitude: number; longitude: number }) => void;
+  /** Initial zoom on web (Leaflet levels). */
+  zoom?: number;
 };
 
-/** Kigali, so the map opens somewhere useful before any data loads. */
-export const DEFAULT_CENTER = { latitude: -1.9441, longitude: 30.0619 };
+/** Kimisagara pilot zone, so the map opens somewhere useful before any data loads. */
+export const DEFAULT_CENTER = { latitude: -1.9500, longitude: 30.0470 };
 
 /** Google's dark styling, trimmed to the layers this app actually needs. */
 const DARK_MAP_STYLE = [
@@ -50,7 +58,7 @@ function lineColor(status?: string) {
 
 /** Native map (Android and iOS). The web build uses MapPanel.web.tsx instead. */
 export default function MapPanel({
-  markers = [], lines = [], center, height = 260, onMarkerPress,
+  markers = [], lines = [], center, height = 260, onMarkerPress, onMapPress,
 }: MapPanelProps) {
   const focus = center ?? markers[0] ?? DEFAULT_CENTER;
 
@@ -59,6 +67,7 @@ export default function MapPanel({
       <MapView
         style={StyleSheet.absoluteFill}
         customMapStyle={DARK_MAP_STYLE}
+        onPress={onMapPress ? (e) => onMapPress(e.nativeEvent.coordinate) : undefined}
         initialRegion={{
           latitude: focus.latitude,
           longitude: focus.longitude,
@@ -70,14 +79,15 @@ export default function MapPanel({
           <Polyline
             key={line.id}
             coordinates={line.path.map(([longitude, latitude]) => ({ latitude, longitude }))}
-            strokeColor={lineColor(line.status)}
+            strokeColor={line.color ?? lineColor(line.status)}
             strokeWidth={3.5}
             lineDashPattern={line.status === 'active' ? undefined : [5, 7]}
           />
         ))}
 
         {markers.map((marker) => {
-          const color = (severityStyles[marker.severity ?? 'medium'] ?? severityStyles.medium).color;
+          const color = marker.color
+            ?? (severityStyles[marker.severity ?? 'medium'] ?? severityStyles.medium).color;
           return (
             <View key={marker.id}>
               {/* A soft halo, so a cluster of leaks reads as a hot zone. */}

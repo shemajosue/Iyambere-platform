@@ -40,7 +40,7 @@ export default function OpsDashboard() {
   return (
     <AppShell
       title="Network operations"
-      subtitle="Live incidents across the distribution network, with the registry and hydraulic model behind them."
+      subtitle="Kimisagara pilot zone — live incidents, with the pipe registry and EPANET model behind every one."
       actions={
         <>
           <Button label="Pressure alerts" variant="ghost" icon="pulse-outline"

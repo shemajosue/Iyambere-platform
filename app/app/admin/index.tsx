@@ -252,7 +252,7 @@ export default function AdminPortal() {
                onChangeText={set('phone')} placeholder="078…"
                keyboardType="phone-pad" autoCapitalize="none" />
         <Field label="District" icon="location-outline" value={form.district}
-               onChangeText={set('district')} placeholder="Gasabo"
+               onChangeText={set('district')} placeholder="Nyarugenge"
                hint={form.role === 'citizen' ? 'Optional for citizens.' : 'Required — work is zoned by district.'} />
         <Field label="Temporary password" icon="lock-closed-outline" value={form.password}
                onChangeText={set('password')} placeholder="At least 6 characters"
@@ -299,7 +299,7 @@ export default function AdminPortal() {
         <Field label="Full name" icon="person-outline" value={form.full_name}
                onChangeText={set('full_name')} />
         <Field label="District" icon="location-outline" value={form.district}
-               onChangeText={set('district')} placeholder="Gasabo" />
+               onChangeText={set('district')} placeholder="Nyarugenge" />
         <Divider />
 
         <Button

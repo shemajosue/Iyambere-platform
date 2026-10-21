@@ -89,7 +89,17 @@ export default function ReportDetail() {
                 id: report.id, latitude, longitude,
                 title: report.ticket_ref, severity: report.severity,
               }]}
+              lines={[
+                ...(report.hydraulics?.pipe ? [report.hydraulics.pipe] : []),
+                ...(report.hydraulics?.nearby_inactive ?? []),
+              ].map((pipe: any) => ({
+                id: `pipe-${pipe.id}`,
+                path: pipe.path,
+                status: pipe.status,
+                title: `${pipe.code} · ${pipe.material ?? 'unknown'} · ${pipe.diameter_mm ?? '?'} mm`,
+              }))}
               height={230}
+              zoom={16}
             />
             <View style={styles.metaRow}>
               <Meta icon="pin-outline" text={`${latitude.toFixed(5)}, ${longitude.toFixed(5)}`} />
@@ -121,6 +131,8 @@ export default function ReportDetail() {
           {user?.role === 'supervisor' && (
             <SupervisorActions report={report} busy={busy} run={run} />
           )}
+
+          {report.hydraulics && <HydraulicsPanel report={report} />}
 
           <Panel title="Progress">
             {report.timeline?.map((entry: any, index: number) => {
@@ -177,10 +189,103 @@ function Meta({ icon, text }: { icon: string; text: string }) {
   );
 }
 
+/**
+ * Module 3 + 5 on the ticket itself: the pipe this leak was matched to, what the
+ * EPANET model expects there against the latest reading, and any dead main
+ * nearby that a crew could dig up by mistake.
+ */
+function HydraulicsPanel({ report }: { report: any }) {
+  const { pipe, latest_reading: reading, nearby_inactive: inactive = [] } = report.hydraulics;
+  const deviation = reading?.deviation_pct;
+  const off = deviation != null && Math.abs(deviation) > 15;
+  const tone = off ? (deviation < 0 ? colors.danger : colors.warning) : colors.accent;
+
+  return (
+    <Panel title="Network & EPANET">
+      {inactive.length > 0 && (
+        <View style={styles.warning}>
+          <Ionicons name="warning-outline" size={15} color={colors.warning} />
+          <Text style={styles.warningText}>
+            {inactive.map((p: any) => `${p.code} (${p.status}, ${p.material ?? 'unknown'}, ${p.distance_m} m away)`).join('; ')}
+            {' '}runs close to this leak. Confirm which main is live before excavating.
+          </Text>
+        </View>
+      )}
+
+      {!pipe ? (
+        <Text style={styles.help}>
+          No live pipe in the registry within 150 m of this location. Assign it to a pipe when the
+          technician confirms which main is leaking.
+        </Text>
+      ) : (
+        <>
+          <View style={styles.pipeHead}>
+            <Text style={styles.pipeCode}>{pipe.code}</Text>
+            <Text style={styles.help}>
+              {report.pipe_distance_m != null ? `${Math.round(report.pipe_distance_m)} m from the report` : 'assigned by operator'}
+            </Text>
+          </View>
+          <View style={styles.factGrid}>
+            <Fact label="Material" value={pipe.material ?? '—'} />
+            <Fact label="Diameter" value={pipe.diameter_mm ? `${pipe.diameter_mm} mm` : '—'} />
+            <Fact label="Laid" value={pipe.installed_on ? String(pipe.installed_on).slice(0, 4) : '—'} />
+            <Fact label="Condition" value={pipe.condition_score ? `${pipe.condition_score}/5` : '—'} />
+            <Fact label="EPANET node" value={pipe.epanet_node ?? '—'} />
+            <Fact label="Earlier leaks" value={String(pipe.previous_leaks ?? 0)}
+                  tone={pipe.previous_leaks >= 2 ? colors.danger : undefined} />
+          </View>
+
+          <View style={styles.pressureRow}>
+            <View style={styles.pressureBox}>
+              <Text style={styles.factLabel}>EPANET expects</Text>
+              <Text style={styles.pressureValue}>
+                {pipe.design_pressure_bar ?? '—'}<Text style={styles.unit}> bar</Text>
+              </Text>
+            </View>
+            <View style={styles.pressureBox}>
+              <Text style={styles.factLabel}>Latest reading</Text>
+              <Text style={[styles.pressureValue, { color: reading ? tone : colors.textMuted }]}>
+                {reading ? reading.measured_bar : '—'}<Text style={styles.unit}> bar</Text>
+              </Text>
+            </View>
+            <View style={styles.pressureBox}>
+              <Text style={styles.factLabel}>Deviation</Text>
+              <Text style={[styles.pressureValue, { color: reading ? tone : colors.textMuted }]}>
+                {deviation != null ? `${deviation > 0 ? '+' : ''}${deviation}%` : '—'}
+              </Text>
+            </View>
+          </View>
+          {reading && (
+            <Text style={styles.help}>
+              {off
+                ? deviation < 0
+                  ? 'Pressure is well below the model — consistent with water escaping this pipe.'
+                  : 'Pressure is above the model — elevated burst risk on an ageing line.'
+                : 'Pressure is tracking the model.'}
+              {' '}Reading taken {timeAgo(reading.recorded_at)}.
+            </Text>
+          )}
+        </>
+      )}
+    </Panel>
+  );
+}
+
+function Fact({ label, value, tone }: { label: string; value: string; tone?: string }) {
+  return (
+    <View style={styles.fact}>
+      <Text style={styles.factLabel}>{label}</Text>
+      <Text style={[styles.factValue, tone ? { color: tone } : null]}>{value}</Text>
+    </View>
+  );
+}
+
 /** Module 4: every step the technician takes is a timestamp on the record. */
 function TechnicianActions({ report, busy, run }: any) {
   const [notes, setNotes] = useState('');
+  const [gauge, setGauge] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const pipe = report.hydraulics?.pipe;
 
   async function pickPhoto() {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
@@ -223,6 +328,17 @@ function TechnicianActions({ report, busy, run }: any) {
           placeholder="Replaced a 1.5 m section of 110 mm PVC; joint had failed."
           multiline
         />
+        {pipe && (
+          <Field
+            label={`Gauge reading on ${pipe.code} (optional)`}
+            icon="speedometer-outline"
+            value={gauge}
+            onChangeText={setGauge}
+            placeholder={`EPANET expects ${pipe.design_pressure_bar ?? '?'} bar`}
+            keyboardType="decimal-pad"
+            hint="Taken after the repair. It is compared with the EPANET model on the pressure screen."
+          />
+        )}
         {photoUri && <Image source={{ uri: photoUri }} style={styles.photo} />}
         <Button
           label={photoUri ? 'Retake completion photo' : 'Add completion photo'}
@@ -234,10 +350,19 @@ function TechnicianActions({ report, busy, run }: any) {
           label="Mark repair complete"
           icon="checkmark-done"
           loading={busy}
+          disabled={!notes.trim()}
           onPress={() =>
             run(async () => {
+              const reading = parseFloat(gauge.replace(',', '.'));
+              if (pipe && Number.isFinite(reading)) {
+                await api.recordPressure({
+                  pipe_id: pipe.id,
+                  node_ref: pipe.epanet_node ?? `GAUGE-${report.ticket_ref}`,
+                  measured_bar: reading,
+                });
+              }
               const form = await buildPhotoForm(photoUri);
-              form.append('notes', notes);
+              form.append('notes', notes.trim());
               return api.resolveReport(report.id, form);
             })
           }
@@ -252,21 +377,48 @@ function TechnicianActions({ report, busy, run }: any) {
 /** Module 2: dispatch from the dashboard, then verify before the ticket closes. */
 function SupervisorActions({ report, busy, run }: any) {
   const { data: technicians } = useApi<any[]>(() => api.availableTechnicians());
+  const [reason, setReason] = useState('');
+  const [rejecting, setRejecting] = useState(false);
 
-  if (report.status === 'submitted') {
-    return (
-      <Panel title="Dispatch a technician">
-        <Text style={styles.help}>Listed by current workload, lightest first.</Text>
-        <View style={{ marginTop: spacing.xs }}>
-          {(technicians ?? []).map((tech, index) => (
+  const rejectPanel = rejecting ? (
+    <Panel title="Close without a repair">
+      <Text style={styles.help}>
+        For duplicates and reports that are not a network leak. The reporter sees this reason on
+        their ticket.
+      </Text>
+      <Field
+        value={reason}
+        onChangeText={setReason}
+        placeholder="Duplicate of IYB-000003, already repaired."
+        multiline
+      />
+      <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+        <Button label="Cancel" variant="ghost" onPress={() => setRejecting(false)} />
+        <Button label="Close report" icon="close-circle-outline" loading={busy}
+                disabled={!reason.trim()}
+                onPress={() => run(() => api.rejectReport(report.id, reason.trim()))} />
+      </View>
+    </Panel>
+  ) : (
+    <Button label="Not a leak / duplicate…" variant="ghost" icon="close-circle-outline"
+            onPress={() => setRejecting(true)} />
+  );
+
+  const dispatchList = (title: string, help: string) => (
+    <Panel title={title}>
+      <Text style={styles.help}>{help}</Text>
+      <View style={{ marginTop: spacing.xs }}>
+        {(technicians ?? []).map((tech, index) => {
+          const current = tech.id === report.technician_id;
+          return (
             <View key={tech.id}>
               {index > 0 && <Divider />}
               <Pressable
                 onPress={() => run(() => api.assignReport(report.id, tech.id))}
-                disabled={busy}
+                disabled={busy || current}
                 style={({ pressed, hovered }: any) => [
                   styles.techRow,
-                  (pressed || hovered) && { opacity: 0.75 },
+                  (pressed || hovered) && !current && { opacity: 0.75 },
                 ]}
               >
                 <View style={styles.techAvatar}>
@@ -277,21 +429,46 @@ function SupervisorActions({ report, busy, run }: any) {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.body}>{tech.full_name}</Text>
                   <Text style={styles.help}>
-                    {tech.district ?? 'Unzoned'} · {tech.open_jobs} open
+                    {tech.district ?? 'Unzoned'} · {tech.open_jobs} open job{Number(tech.open_jobs) === 1 ? '' : 's'}
                   </Text>
                 </View>
-                <View style={styles.assign}>
-                  <Text style={styles.assignText}>Assign</Text>
-                  <Ionicons name="arrow-forward" size={12} color={colors.accent} />
-                </View>
+                {current ? (
+                  <Text style={styles.help}>Current</Text>
+                ) : (
+                  <View style={styles.assign}>
+                    <Text style={styles.assignText}>{report.technician_id ? 'Reassign' : 'Assign'}</Text>
+                    <Ionicons name="arrow-forward" size={12} color={colors.accent} />
+                  </View>
+                )}
               </Pressable>
             </View>
-          ))}
-          {(technicians ?? []).length === 0 && (
-            <Text style={styles.help}>No technicians available.</Text>
-          )}
-        </View>
-      </Panel>
+          );
+        })}
+        {(technicians ?? []).length === 0 && (
+          <Text style={styles.help}>No active technicians. Add one in the admin panel.</Text>
+        )}
+      </View>
+    </Panel>
+  );
+
+  if (report.status === 'submitted') {
+    return (
+      <>
+        {dispatchList('Dispatch a technician', 'Listed by current workload, lightest first. The technician is notified in their jobs list.')}
+        {rejectPanel}
+      </>
+    );
+  }
+
+  if (report.status === 'assigned' || report.status === 'accepted') {
+    return (
+      <>
+        {dispatchList(
+          'Re-dispatch',
+          `${report.technician_name} has ${report.status === 'assigned' ? 'not accepted yet' : 'accepted but not arrived'}. Move the job if someone closer or less busy can get there first.`
+        )}
+        {report.status === 'assigned' && rejectPanel}
+      </>
     );
   }
 
@@ -361,5 +538,36 @@ const styles = StyleSheet.create({
   },
   techInitials: { color: colors.accent, fontSize: 11, fontWeight: '700' },
   assign: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+
+  warning: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    backgroundColor: tint(colors.warning, 0.1),
+    borderWidth: 1,
+    borderColor: tint(colors.warning, 0.25),
+    borderRadius: radius.md,
+    padding: spacing.sm + 2,
+  },
+  warningText: { flex: 1, color: colors.warning, fontSize: 12.5, lineHeight: 18 },
+
+  pipeHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: spacing.sm },
+  pipeCode: { color: colors.text, fontSize: 15, fontWeight: '700', letterSpacing: 0.2 },
+  factGrid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: spacing.sm },
+  fact: { flexBasis: '33%', flexGrow: 1, gap: 1 },
+  factLabel: { color: colors.textMuted, fontSize: 11 },
+  factValue: { color: colors.text, fontSize: 13, fontWeight: '600' },
+
+  pressureRow: { flexDirection: 'row', gap: spacing.sm },
+  pressureBox: {
+    flex: 1,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.sm + 2,
+    gap: 2,
+  },
+  pressureValue: { color: colors.text, fontSize: 18, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  unit: { fontSize: 11.5, fontWeight: '500', color: colors.textMuted },
   assignText: { color: colors.accent, fontSize: 12.5, fontWeight: '600' },
 });

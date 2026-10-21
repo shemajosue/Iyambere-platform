@@ -68,6 +68,8 @@ model User {
   passwordHash String        @map("password_hash")
   role         UserRole      @default(citizen)
   district     String?
+  /// Accounts are deactivated, never deleted (migration 001).
+  isActive     Boolean       @default(true) @map("is_active")
   createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz
 
   // Relations
@@ -92,6 +94,8 @@ model Pipe {
   lastMaintenanceOn DateTime?         @map("last_maintenance_on") @db.Date
   path              Json              @default("[]")
   notes             String?
+  /// EPANET junction this segment is modelled by (migration 002).
+  epanetNode        String?           @map("epanet_node")
   createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz
 
   // Relations
@@ -117,6 +121,8 @@ model Report {
   photoUrl           String?      @map("photo_url")
   pipeId             Int?         @map("pipe_id")
   assignedTo         Int?         @map("assigned_to")
+  /// Distance from the GPS point to the matched pipe (migration 002).
+  pipeDistanceM      Decimal?     @map("pipe_distance_m") @db.Decimal(7, 1)
   
   // Timestamps
   assignedAt         DateTime?    @map("assigned_at") @db.Timestamptz
@@ -124,6 +130,7 @@ model Report {
   arrivedAt          DateTime?    @map("arrived_at") @db.Timestamptz
   resolvedAt         DateTime?    @map("resolved_at") @db.Timestamptz
   verifiedAt         DateTime?    @map("verified_at") @db.Timestamptz
+  rejectedAt         DateTime?    @map("rejected_at") @db.Timestamptz
   createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz
   /// Maintained by the reports_touch_updated_at trigger, not by the client.
   updatedAt          DateTime     @default(now()) @map("updated_at") @db.Timestamptz
