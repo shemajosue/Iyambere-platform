@@ -76,8 +76,8 @@ git push -u origin finalise-for-presentation
   service finds an empty database and loads the demo again.
 - **Photos** are stored on the service's disk and are cleared on each redeploy. That's
   fine for a demo; use object storage before a real pilot.
-- **Maps** need internet in the room for the street tiles (CARTO dark basemap, with
-  automatic fallback to OpenStreetMap). The map library itself ships with the app, so
+- **Maps** need internet in the room for the street tiles (OpenStreetMap,
+  darkened to match the console). The map library itself ships with the app, so
   pipes, leaks and clicks keep working even if the tiles are slow.
 - **Your own domain**, e.g. `iyambere.rw`: Render → service → Settings → Custom Domains.
 

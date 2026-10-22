@@ -95,11 +95,10 @@ function buildHtml({ markers, lines, focus, zoom, pickable }: any) {
       html, body, #map { height: 100%; margin: 0; background: ${colors.bg}; }
       .leaflet-container { background: ${colors.bg}; font-family: system-ui, sans-serif; }
       .pickable.leaflet-container { cursor: crosshair; }
-      /* Fallback only: if the dark CARTO basemap cannot be reached, plain
-         OpenStreetMap tiles are used and darkened here, so the map keeps the
+      /* Plain OpenStreetMap tiles, darkened here so the map keeps the
          console's look. Markers and pipes sit above the tile pane and keep
          their exact colours. */
-      .osm-fallback .leaflet-tile-pane {
+      .osm-dark .leaflet-tile-pane {
         filter: invert(1) hue-rotate(180deg) brightness(0.86) contrast(0.9) saturate(0.35);
       }
       .leaflet-tooltip {
@@ -164,25 +163,14 @@ function buildHtml({ markers, lines, focus, zoom, pickable }: any) {
         });
         map.on('mouseout', function () { map.scrollWheelZoom.disable(); });
 
-        // Dark basemap from CARTO (free, no key, OpenStreetMap data). If its
-        // tiles fail to load, switch once to plain OpenStreetMap, darkened by CSS.
-        var loaded = 0, failed = 0, switched = false;
-        var carto = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-          subdomains: 'abcd', maxZoom: 19,
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        // Plain OpenStreetMap tiles, darkened by CSS. CARTO's dark basemap now
+        // serves "key required" images with a 200 status, so it cannot be used
+        // without an account and no error event would ever trigger a fallback.
+        document.getElementById('map').classList.add('osm-dark');
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
-        carto.on('tileload', function () { loaded++; });
-        carto.on('tileerror', function () {
-          failed++;
-          if (!switched && loaded === 0 && failed >= 3) {
-            switched = true;
-            map.removeLayer(carto);
-            document.getElementById('map').classList.add('osm-fallback');
-            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-              maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
-            }).addTo(map);
-          }
-        });
 
         var bounds = [];
 

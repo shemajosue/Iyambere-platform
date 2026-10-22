@@ -202,8 +202,8 @@ an icon rail plus a top bar above 900px and a bottom tab bar below it, and
 dense table on a dashboard and as cards on a phone. Both show the identical five
 facts, because those are the five an operator needs before deciding to act.
 
-Maps follow the same palette — the dark CARTO basemap on web (falling back to
-darkened OpenStreetMap tiles if CARTO is unreachable), a matching `customMapStyle`
+Maps follow the same palette — OpenStreetMap tiles darkened with a CSS filter on
+web (no API key needed), a matching `customMapStyle`
 on native — with a soft halo under each incident so a cluster of leaks reads as a
 hot zone. Leaflet ships inside the app (`app/public/vendor/leaflet`), so the map
 never depends on a CDN during a demo.
